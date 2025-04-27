@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click Counter with Payment</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #clickCount {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        #paymentMessage {
+            color: #ff0000;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Click Counter</h1>
+    <div id="clickCount">Clicks: 0</div>
+    <button id="clickButton">Click Me!</button>
+    <div id="paymentMessage"></div>
+
+    <script>
+        const stripe = Stripe('YOUR_STRIPE_PUBLIC_KEY'); // Replace with your actual Stripe public key
+        const clickButton = document.getElementById('clickButton');
+        const clickCountDisplay = document.getElementById('clickCount');
+        const paymentMessage = document.getElementById('paymentMessage');
+        let clickCount = 0;
+
+        async function incrementClicks() {
+            try {
+                const response = await fetch('/increment-clicks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId: 'default' })
+                });
+                const data = await response.json();
+                
+                clickCount = data.count;
+                clickCountDisplay.textContent = `Clicks: ${clickCount}`;
+
+                if (data.requiresPayment) {
+                    clickButton.disabled = true;
+                    paymentMessage.textContent = 'You need to make a payment to continue!';
+                    await initiatePayment();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function initiatePayment() {
+            try {
+                const response = await fetch('/create-payment-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const { sessionId } = await response.json();
+                
+                const result = await stripe.redirectToCheckout({
+                    sessionId: sessionId
+                });
+
+                if (result.error) {
+                    paymentMessage.textContent = result.error.message;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                paymentMessage.textContent = 'An error occurred during payment. Please try again.';
+            }
+        }
+
+        clickButton.addEventListener('click', incrementClicks);
+    </script>
+</body>
+</html> 
