@@ -44,6 +44,8 @@
     <div id="paymentMessage"></div>
 
     <script>
+        // Get the current URL to determine the API base URL
+        const baseUrl = window.location.origin;
         const stripe = Stripe('YOUR_STRIPE_PUBLIC_KEY'); // Replace with your actual Stripe public key
         const clickButton = document.getElementById('clickButton');
         const clickCountDisplay = document.getElementById('clickCount');
@@ -52,14 +54,20 @@
 
         async function incrementClicks() {
             try {
-                const response = await fetch('/increment-clicks', {
+                const response = await fetch(`${baseUrl}/increment-clicks`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ userId: 'default' })
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
+                console.log('Response:', data); // Debug log
                 
                 clickCount = data.count;
                 clickCountDisplay.textContent = `Clicks: ${clickCount}`;
@@ -71,18 +79,25 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
+                paymentMessage.textContent = `Error: ${error.message}`;
             }
         }
 
         async function initiatePayment() {
             try {
-                const response = await fetch('/create-payment-session', {
+                const response = await fetch(`${baseUrl}/create-payment-session`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     }
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const { sessionId } = await response.json();
+                console.log('Session ID:', sessionId); // Debug log
                 
                 const result = await stripe.redirectToCheckout({
                     sessionId: sessionId
@@ -93,7 +108,7 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                paymentMessage.textContent = 'An error occurred during payment. Please try again.';
+                paymentMessage.textContent = `Payment Error: ${error.message}`;
             }
         }
 
