@@ -25,15 +25,20 @@ const clickCounts = new Map()
 // Endpoint to check click count
 app.get('/check-clicks', (req, res) => {
     try {
+        const userId = req.query.userId || 'default'
         const clickCount = parseInt(req.query.count) || 0
         
         if (isNaN(clickCount)) {
             return res.status(400).json({ error: 'Invalid click count provided' })
         }
         
+        // Store the click count for this user
+        clickCounts.set(userId, clickCount)
+        
         res.json({ 
-            requiresPayment: clickCount >= 50,
-            message: clickCount >= 50 ? 'Payment required' : 'Continue clicking'
+            requiresPayment: clickCount >= 3,
+            message: clickCount >= 3 ? 'Payment required' : 'Continue clicking',
+            userId: userId
         })
     } catch (error) {
         console.error('Error in check-clicks:', error);
