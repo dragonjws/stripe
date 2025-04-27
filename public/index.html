@@ -28,12 +28,14 @@
             cursor: not-allowed;
         }
         #clickCount {
-            font-size: 18px;
+            font-size: 24px;
             margin: 10px 0;
+            font-weight: bold;
         }
         #paymentMessage {
             color: #ff0000;
             margin: 10px 0;
+            font-size: 18px;
         }
         .payment-button {
             background-color: #4CAF50;
@@ -44,12 +46,30 @@
             cursor: pointer;
             display: none;
             margin-top: 10px;
+            font-size: 16px;
+        }
+        .progress-bar {
+            width: 300px;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress {
+            width: 0%;
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease;
         }
     </style>
 </head>
 <body>
     <h1>Click Counter</h1>
     <div id="clickCount">Clicks: 0</div>
+    <div class="progress-bar">
+        <div class="progress" id="progressBar"></div>
+    </div>
     <button id="clickButton">Click Me!</button>
     <div id="paymentMessage"></div>
     <button id="paymentButton" class="payment-button">Make Payment</button>
@@ -61,7 +81,13 @@
         const clickCountDisplay = document.getElementById('clickCount');
         const paymentMessage = document.getElementById('paymentMessage');
         const paymentButton = document.getElementById('paymentButton');
+        const progressBar = document.getElementById('progressBar');
         let clickCount = 0;
+
+        function updateProgress() {
+            const percentage = (clickCount / 50) * 100;
+            progressBar.style.width = `${percentage}%`;
+        }
 
         async function incrementClicks() {
             try {
@@ -80,6 +106,7 @@
                 const data = await response.json();
                 clickCount = data.count;
                 clickCountDisplay.textContent = `Clicks: ${clickCount}`;
+                updateProgress();
 
                 if (clickCount >= 50) {
                     clickButton.disabled = true;
