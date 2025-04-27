@@ -18,22 +18,25 @@ app.use(express.json())
 app.use(express.static('public'))
 app.set('view engine', 'ejs')
 
-// In-memory storage for click counts (in production, use a database)
+// NOTE: In a production environment, replace this with a proper database
+// This in-memory storage will not persist between serverless function invocations
 const clickCounts = new Map()
 
-// Endpoint to increment click count
-app.post('/increment-clicks', (req, res) => {
+// Endpoint to check click count
+app.get('/check-clicks', (req, res) => {
     try {
-        const userId = req.body.userId || 'default'
-        const currentCount = clickCounts.get(userId) || 0
-        const newCount = currentCount + 1
-        clickCounts.set(userId, newCount)
+        const clickCount = parseInt(req.query.count) || 0
+        
+        if (isNaN(clickCount)) {
+            return res.status(400).json({ error: 'Invalid click count provided' })
+        }
         
         res.json({ 
-            count: newCount
+            requiresPayment: clickCount >= 50,
+            message: clickCount >= 50 ? 'Payment required' : 'Continue clicking'
         })
     } catch (error) {
-        console.error('Error in increment-clicks:', error);
+        console.error('Error in check-clicks:', error);
         res.status(500).json({ error: error.message })
     }
 })
@@ -69,6 +72,7 @@ app.post('/reset-clicks', (req, res) => {
     try {
         const userId = req.body.userId || 'default'
         clickCounts.set(userId, 0)
+        console.log(`Reset click count for user ${userId}`); // Log the reset
         res.json({ success: true })
     } catch (error) {
         console.error('Error in reset-clicks:', error);
@@ -78,12 +82,12 @@ app.post('/reset-clicks', (req, res) => {
 
 // Payment success page
 app.get('/payment-success', (req, res) => {
-    res.send('Payment successful! The button has been unlocked.')
+    res.json({ message: 'Payment successful! The button has been unlocked.' })
 })
 
 // Payment cancelled page
 app.get('/payment-cancelled', (req, res) => {
-    res.send('Payment was cancelled. Please try again.')
+    res.json({ message: 'Payment was cancelled. Please try again.' })
 })
 
 // Use the PORT environment variable provided by Vercel, or fallback to 3000
@@ -91,3 +95,6 @@ const port = process.env.PORT || 3000
 app.listen(port, () => {
     console.log(`Server running on port ${port}`)
 })
+
+// Export the Express app for Vercel
+module.exports = app
