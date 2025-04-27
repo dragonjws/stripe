@@ -7,7 +7,11 @@ const stripePublicKey = process.env.STRIPE_PUBLIC_KEY
 const stripe = require('stripe')(stripeSecretKey)
 
 const express = require('express')
+const cors = require('cors')
 const app = express()
+
+// Enable CORS for all routes
+app.use(cors())
 
 // Middleware to parse JSON bodies
 app.use(express.json())
@@ -72,6 +76,8 @@ app.get('/payment-cancelled', (req, res) => {
     res.send('Payment was cancelled. Please try again.')
 })
 
-app.listen(3000, () => {
-    console.log('Server running on port 3000')
+// Use the PORT environment variable provided by Vercel, or fallback to 3000
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`)
 })
