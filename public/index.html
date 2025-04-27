@@ -8,147 +8,102 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            max-width: 800px;
+            margin: 0 auto;
             padding: 20px;
+            text-align: center;
         }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        #clickCount {
+        .click-counter {
             font-size: 24px;
-            margin: 10px 0;
-            font-weight: bold;
-        }
-        #paymentMessage {
-            color: #ff0000;
-            margin: 10px 0;
-            font-size: 18px;
+            margin: 20px 0;
         }
         .payment-button {
             background-color: #4CAF50;
             color: white;
-            padding: 10px 20px;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
             border: none;
             border-radius: 4px;
-            cursor: pointer;
-            display: none;
-            margin-top: 10px;
-            font-size: 16px;
         }
-        .progress-bar {
-            width: 300px;
-            height: 20px;
-            background-color: #f0f0f0;
-            border-radius: 10px;
-            margin: 10px 0;
-            overflow: hidden;
+        .payment-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
-        .progress {
-            width: 0%;
-            height: 100%;
-            background-color: #4CAF50;
-            transition: width 0.3s ease;
+        .message {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
         }
     </style>
 </head>
 <body>
     <h1>Click Counter</h1>
-    <div id="clickCount">Clicks: 0</div>
-    <div class="progress-bar">
-        <div class="progress" id="progressBar"></div>
+    <div class="click-counter">
+        Clicks: <span id="clickCount">0</span>
     </div>
     <button id="clickButton">Click Me!</button>
-    <div id="paymentMessage"></div>
-    <button id="paymentButton" class="payment-button">Make Payment</button>
+    <div id="message" class="message"></div>
+    <button id="paymentButton" class="payment-button" style="display: none;">Pay Now</button>
 
-    <script>
-        const baseUrl = window.location.origin;
-        const stripe = Stripe('YOUR_STRIPE_PUBLIC_KEY'); // Replace with your actual Stripe public key
+    <script type="module">
+        import { checkClicks } from './api.js';
+        import { handlePayment } from './payment.js';
+
+        let clickCount = 0;
+        const userId = 'user123'; // In a real app, this would come from your auth system
+
         const clickButton = document.getElementById('clickButton');
         const clickCountDisplay = document.getElementById('clickCount');
-        const paymentMessage = document.getElementById('paymentMessage');
         const paymentButton = document.getElementById('paymentButton');
-        const progressBar = document.getElementById('progressBar');
-        let clickCount = 0;
+        const messageDiv = document.getElementById('message');
 
-        function updateProgress() {
-            const percentage = (clickCount / 50) * 100;
-            progressBar.style.width = `${percentage}%`;
-        }
-
-        async function incrementClicks() {
+        async function updateClickCount() {
             try {
-                const response = await fetch(`${baseUrl}/increment-clicks`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ userId: 'default' })
-                });
+                const result = await checkClicks(clickCount, userId);
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                clickCount = data.count;
-                clickCountDisplay.textContent = `Clicks: ${clickCount}`;
-                updateProgress();
-
-                if (clickCount >= 50) {
+                if (result.requiresPayment) {
                     clickButton.disabled = true;
-                    paymentMessage.textContent = 'You need to make a payment to continue!';
-                    paymentButton.style.display = 'block';
+                    paymentButton.style.display = 'inline-block';
+                    messageDiv.textContent = 'Payment required to continue clicking!';
+                    messageDiv.className = 'message error';
+                } else {
+                    clickButton.disabled = false;
+                    paymentButton.style.display = 'none';
+                    messageDiv.textContent = 'Continue clicking!';
+                    messageDiv.className = 'message success';
                 }
             } catch (error) {
                 console.error('Error:', error);
-                paymentMessage.textContent = `Error: ${error.message}`;
+                messageDiv.textContent = 'Error checking click count. Please try again.';
+                messageDiv.className = 'message error';
             }
         }
 
-        async function initiatePayment() {
-            try {
-                const response = await fetch(`${baseUrl}/create-payment-session`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const { sessionId } = await response.json();
-                
-                const result = await stripe.redirectToCheckout({
-                    sessionId: sessionId
-                });
+        clickButton.addEventListener('click', () => {
+            clickCount++;
+            clickCountDisplay.textContent = clickCount;
+            updateClickCount();
+        });
 
-                if (result.error) {
-                    paymentMessage.textContent = result.error.message;
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                paymentMessage.textContent = `Payment Error: ${error.message}`;
-            }
-        }
+        paymentButton.addEventListener('click', () => {
+            handlePayment(userId);
+        });
 
-        clickButton.addEventListener('click', incrementClicks);
-        paymentButton.addEventListener('click', initiatePayment);
+        // Initial check
+        updateClickCount();
     </script>
 </body>
 </html> 

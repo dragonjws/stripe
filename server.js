@@ -46,9 +46,18 @@ app.get('/check-clicks', (req, res) => {
     }
 })
 
-// Endpoint to create a payment session
+// Create Payment Session Endpoint
 app.post('/create-payment-session', async (req, res) => {
     try {
+        const { userId } = req.body
+
+        if (!userId) {
+            return res.status(400).json({ 
+                error: 'Missing required field',
+                details: 'userId is required'
+            })
+        }
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [{
@@ -56,43 +65,81 @@ app.post('/create-payment-session', async (req, res) => {
                     currency: 'usd',
                     product_data: {
                         name: 'Button Unlock',
+                        description: 'Unlock additional version creation capabilities'
                     },
                     unit_amount: 500, // $5.00
                 },
                 quantity: 1,
             }],
             mode: 'payment',
-            success_url: `${req.headers.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${req.headers.origin}/payment-cancelled`,
+            success_url: `${req.headers.origin}?payment_status=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${req.headers.origin}?payment_status=cancelled`,
+            client_reference_id: userId,
+            metadata: {
+                userId: userId
+            }
         })
-        res.json({ sessionId: session.id })
+
+        res.json({ url: session.url })
     } catch (error) {
         console.error('Error creating payment session:', error);
-        res.status(500).json({ error: error.message })
+        res.status(500).json({ 
+            error: 'Failed to create payment session',
+            details: error.message
+        })
     }
 })
 
-// Endpoint to reset click count after successful payment
+// Verify Payment Endpoint
+app.get('/verify-payment', async (req, res) => {
+    try {
+        const { session_id } = req.query
+
+        if (!session_id) {
+            return res.status(400).json({ 
+                error: 'Missing required field',
+                details: 'session_id is required'
+            })
+        }
+
+        const session = await stripe.checkout.sessions.retrieve(session_id)
+        const userId = session.client_reference_id
+
+        if (session.payment_status === 'paid') {
+            // Reset click count for the user
+            clickCounts.set(userId, 0)
+            res.json({ verified: true })
+        } else {
+            res.json({ verified: false })
+        }
+    } catch (error) {
+        console.error('Error verifying payment:', error);
+        res.status(500).json({ 
+            error: 'Failed to verify payment',
+            details: error.message
+        })
+    }
+})
+
+// Reset Clicks Endpoint
 app.post('/reset-clicks', (req, res) => {
     try {
-        const userId = req.body.userId || 'default'
+        const { userId } = req.body
+
+        if (!userId) {
+            return res.status(400).json({ 
+                error: 'Missing required field',
+                details: 'userId is required'
+            })
+        }
+
         clickCounts.set(userId, 0)
-        console.log(`Reset click count for user ${userId}`); // Log the reset
+        console.log(`Reset click count for user ${userId}`)
         res.json({ success: true })
     } catch (error) {
         console.error('Error in reset-clicks:', error);
         res.status(500).json({ error: error.message })
     }
-})
-
-// Payment success page
-app.get('/payment-success', (req, res) => {
-    res.json({ message: 'Payment successful! The button has been unlocked.' })
-})
-
-// Payment cancelled page
-app.get('/payment-cancelled', (req, res) => {
-    res.json({ message: 'Payment was cancelled. Please try again.' })
 })
 
 // Use the PORT environment variable provided by Vercel, or fallback to 3000
