@@ -35,6 +35,16 @@
             color: #ff0000;
             margin: 10px 0;
         }
+        .payment-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: none;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -42,14 +52,15 @@
     <div id="clickCount">Clicks: 0</div>
     <button id="clickButton">Click Me!</button>
     <div id="paymentMessage"></div>
+    <button id="paymentButton" class="payment-button">Make Payment</button>
 
     <script>
-        // Get the current URL to determine the API base URL
         const baseUrl = window.location.origin;
         const stripe = Stripe('YOUR_STRIPE_PUBLIC_KEY'); // Replace with your actual Stripe public key
         const clickButton = document.getElementById('clickButton');
         const clickCountDisplay = document.getElementById('clickCount');
         const paymentMessage = document.getElementById('paymentMessage');
+        const paymentButton = document.getElementById('paymentButton');
         let clickCount = 0;
 
         async function incrementClicks() {
@@ -67,15 +78,13 @@
                 }
                 
                 const data = await response.json();
-                console.log('Response:', data); // Debug log
-                
                 clickCount = data.count;
                 clickCountDisplay.textContent = `Clicks: ${clickCount}`;
 
-                if (data.requiresPayment) {
+                if (clickCount >= 50) {
                     clickButton.disabled = true;
                     paymentMessage.textContent = 'You need to make a payment to continue!';
-                    await initiatePayment();
+                    paymentButton.style.display = 'block';
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -97,7 +106,6 @@
                 }
                 
                 const { sessionId } = await response.json();
-                console.log('Session ID:', sessionId); // Debug log
                 
                 const result = await stripe.redirectToCheckout({
                     sessionId: sessionId
@@ -113,6 +121,7 @@
         }
 
         clickButton.addEventListener('click', incrementClicks);
+        paymentButton.addEventListener('click', initiatePayment);
     </script>
 </body>
 </html> 

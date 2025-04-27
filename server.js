@@ -24,17 +24,13 @@ const clickCounts = new Map()
 // Endpoint to increment click count
 app.post('/increment-clicks', (req, res) => {
     try {
-        console.log('Increment clicks request received:', req.body);
         const userId = req.body.userId || 'default'
         const currentCount = clickCounts.get(userId) || 0
         const newCount = currentCount + 1
         clickCounts.set(userId, newCount)
         
-        console.log(`Click count updated for user ${userId}: ${newCount}`);
-        
         res.json({ 
-            count: newCount,
-            requiresPayment: newCount >= 50
+            count: newCount
         })
     } catch (error) {
         console.error('Error in increment-clicks:', error);
@@ -45,7 +41,6 @@ app.post('/increment-clicks', (req, res) => {
 // Endpoint to create a payment session
 app.post('/create-payment-session', async (req, res) => {
     try {
-        console.log('Creating payment session');
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [{
@@ -62,7 +57,6 @@ app.post('/create-payment-session', async (req, res) => {
             success_url: `${req.headers.origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${req.headers.origin}/payment-cancelled`,
         })
-        console.log('Payment session created:', session.id);
         res.json({ sessionId: session.id })
     } catch (error) {
         console.error('Error creating payment session:', error);
@@ -73,10 +67,8 @@ app.post('/create-payment-session', async (req, res) => {
 // Endpoint to reset click count after successful payment
 app.post('/reset-clicks', (req, res) => {
     try {
-        console.log('Reset clicks request received:', req.body);
         const userId = req.body.userId || 'default'
         clickCounts.set(userId, 0)
-        console.log(`Click count reset for user ${userId}`);
         res.json({ success: true })
     } catch (error) {
         console.error('Error in reset-clicks:', error);
